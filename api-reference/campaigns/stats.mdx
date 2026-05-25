@@ -1,0 +1,56 @@
+---
+title: Campaign stats
+description: GET /v1/campaigns/{id}/stats
+---
+
+# Campaign stats
+
+Returns the campaign record with live delivery statistics.
+
+## Request
+
+`GET /v1/campaigns/{id}/stats`
+
+Also available as `GET /v1/campaigns/{id}` (same payload shape).
+
+### Example
+
+```bash
+curl -s https://api.inboundsage.com/v1/campaigns/$CAMPAIGN_ID/stats \
+  -H "Authorization: Bearer $TOKEN" \
+  | jq '{status:.status, sent:.stats.sent_count, failed:.stats.failed_count}'
+```
+
+## Response
+
+```json
+{
+  "id": "uuid",
+  "name": "March promo",
+  "status": "COMPLETED",
+  "stats": {
+    "total_count": 100,
+    "queued_count": 100,
+    "sent_count": 98,
+    "delivered_count": 95,
+    "read_count": 40,
+    "failed_count": 2,
+    "opted_out_count": 0,
+    "completion_percentage": 100
+  },
+  "started_at": "2026-05-25T02:50:40.419Z",
+  "completed_at": "2026-05-25T02:55:12.000Z"
+}
+```
+
+## Status values
+
+| Status | Meaning |
+| ------ | ------- |
+| `DRAFT` | Created, not started |
+| `SCHEDULED` | Waiting for `scheduledAt` |
+| `RUNNING` | Worker sending recipients |
+| `PAUSED` | Manually or rate-limit paused |
+| `COMPLETED` | All recipients processed |
+| `CANCELLED` | Stopped by user |
+| `FAILED` | Halted due to Meta/template error |

@@ -1,0 +1,83 @@
+---
+title: Create campaign
+description: POST /v1/campaigns
+---
+
+# Create campaign
+
+Create a campaign in `DRAFT` status with recipients materialized at create time.
+
+<Note>
+  Supports [idempotency](/rate-limits#idempotency) via `Idempotency-Key` header.
+</Note>
+
+## Request
+
+`POST /v1/campaigns`
+
+Requires **OWNER** or **ADMIN** (JWT) or API key.
+
+### Body
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `name` | string | Yes | Campaign display name |
+| `wabaId` | uuid | Yes | WABA UUID |
+| `phoneNumberId` | uuid | Yes | Phone number UUID |
+| `templateId` | uuid | Yes | APPROVED template UUID |
+| `audienceType` | enum | Yes | `SEGMENT`, `CONTACTS`, or `INLINE` |
+| `segmentId` | uuid | If SEGMENT | Segment to expand |
+| `contactIds` | uuid[] | If CONTACTS | Contact IDs |
+| `contacts` | array | If INLINE | `{ phone, variables? }` |
+| `scheduledAt` | ISO8601 | No | Future start time |
+| `timezone` | string | No | Default `Asia/Kolkata` |
+
+### Example — inline audience
+
+```bash
+curl -s -X POST https://api.inboundsage.com/v1/campaigns \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: campaign-001" \
+  -d '{
+    "name": "March promo",
+    "wabaId": "51444459-facf-43be-8f1a-e846447d7272",
+    "phoneNumberId": "a45868f4-c101-488f-bb61-08964838f661",
+    "templateId": "9b2a8ff5-dff1-48e3-a8ec-d4c50838769c",
+    "audienceType": "INLINE",
+    "contacts": [
+      { "phone": "919876543210" }
+    ]
+  }'
+```
+
+### Example — image header template
+
+```json
+"contacts": [{
+  "phone": "919876543210",
+  "variables": {
+    "__headerMediaUrl": "https://api.inboundsage.com/uploads/tenant-id/file.png"
+  }
+}]
+```
+
+## Response `201`
+
+```json
+{
+  "id": "uuid",
+  "name": "March promo",
+  "status": "DRAFT",
+  "stats": {
+    "total_count": 1,
+    "queued_count": 1,
+    "sent_count": 0,
+    "completion_percentage": 0
+  }
+}
+```
+
+## Next step
+
+[Activate the campaign](/api-reference/campaigns/activate) to start sending.

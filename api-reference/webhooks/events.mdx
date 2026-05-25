@@ -1,0 +1,96 @@
+---
+title: Webhook events
+description: Event types and payload envelope
+---
+
+# Webhook events
+
+InboundSage delivers events in a Stripe-style envelope to your registered URL.
+
+## Envelope
+
+Every delivery is a JSON POST:
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "type": "message.inbound",
+  "created_at": "2026-05-25T02:15:26.921Z",
+  "data": { }
+}
+```
+
+| Field | Description |
+| ----- | ----------- |
+| `id` | Unique event id (same for all subscribers on this emission) |
+| `type` | Event type string |
+| `created_at` | ISO 8601 timestamp |
+| `data` | Event-specific payload |
+
+## HTTP headers
+
+| Header | Description |
+| ------ | ----------- |
+| `Content-Type` | `application/json` |
+| `X-InboundSage-Event` | Event type (e.g. `message.inbound`) |
+| `X-InboundSage-Delivery` | Event id |
+| `X-InboundSage-Signature` | `sha256=<hmac>` of raw body |
+
+## Event types
+
+### Messages
+
+| Type | When |
+| ---- | ---- |
+| `message.inbound` | New inbound WhatsApp message stored |
+| `message.sent` | Outbound message status: sent |
+| `message.delivered` | Delivered |
+| `message.read` | Read |
+| `message.failed` | Failed |
+
+**`message.inbound` data example:**
+
+```json
+{
+  "message_id": "uuid",
+  "meta_message_id": "wamid.xxx",
+  "conversation_id": "uuid",
+  "contact_id": "uuid",
+  "from": "919876543210",
+  "type": "text",
+  "preview": "Hello",
+  "timestamp": "2026-05-25T02:15:26.921Z"
+}
+```
+
+### Campaigns
+
+| Type | When |
+| ---- | ---- |
+| `campaign.started` | Campaign activated or scheduled job started |
+| `campaign.completed` | All recipients processed |
+| `campaign.paused` | Campaign paused |
+
+### Contacts
+
+| Type | When |
+| ---- | ---- |
+| `contact.opted_out` | Contact opted out via inbound keyword |
+
+### Templates & WABA
+
+| Type | When |
+| ---- | ---- |
+| `template.approved` | Template approved (future) |
+| `template.rejected` | Template rejected (future) |
+| `waba.quality_changed` | Phone quality rating changed |
+
+### Testing
+
+| Type | When |
+| ---- | ---- |
+| `webhook.test` | `POST /v1/webhooks/{id}/test` |
+
+## Retries
+
+Failed deliveries (non-2xx or timeout) retry up to **5 times** with exponential backoff. After repeated failures the webhook moves to `FAILING` and may be `DISABLED`.

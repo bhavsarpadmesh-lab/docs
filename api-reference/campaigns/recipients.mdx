@@ -1,0 +1,58 @@
+---
+title: Campaign recipients
+description: GET /v1/campaigns/{id}/recipients
+---
+
+# Campaign recipients
+
+Paginated list of recipients for a campaign.
+
+## Request
+
+`GET /v1/campaigns/{id}/recipients`
+
+### Query parameters
+
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `cursor` | uuid | Recipient id; returns rows with `id > cursor` |
+| `limit` | int | Page size (1–100, default 50) |
+| `status` | enum | Filter: `QUEUED`, `SENT`, `DELIVERED`, `READ`, `FAILED`, `SKIPPED` |
+| `phone` | string | Partial phone match |
+
+### Example
+
+```bash
+curl -s "https://api.inboundsage.com/v1/campaigns/$CAMPAIGN_ID/recipients?limit=50" \
+  -H "Authorization: Bearer $TOKEN" | jq
+```
+
+## Response
+
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "phone": "919876543210",
+      "status": "SENT",
+      "meta_message_id": "wamid.xxx",
+      "sent_at": "2026-05-25T02:50:41.000Z",
+      "error": null
+    }
+  ],
+  "next_cursor": "uuid-or-null",
+  "has_more": false
+}
+```
+
+## Recipient statuses
+
+| Status | Description |
+| ------ | ----------- |
+| `QUEUED` | Waiting to send |
+| `SENT` | Accepted by Meta |
+| `DELIVERED` | Delivered to device |
+| `READ` | Read by user |
+| `FAILED` | Send or delivery failed (`error` field set) |
+| `SKIPPED` | Opted out or filtered |

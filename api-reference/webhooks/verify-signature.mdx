@@ -1,0 +1,69 @@
+---
+title: Verify webhook signature
+description: HMAC-SHA256 verification for webhook deliveries
+---
+
+# Verify webhook signature
+
+Verify that each webhook POST originated from InboundSage before processing the payload.
+
+## Algorithm
+
+1. Read the **raw request body** (bytes, before JSON parsing).
+2. Decrypt or load your webhook secret (`is_whsec_…` from create response).
+3. Compute `HMAC-SHA256(secret, rawBody)` as lowercase hex.
+4. Compare to header `X-InboundSage-Signature: sha256=<hex>` using constant-time comparison.
+
+## Node.js example
+
+```javascript
+import { createHmac, timingSafeEqual } from 'crypto';
+
+function verifyInboundSageWebhook(secret, rawBody, signatureHeader) {
+  if (!signatureHeader?.startsWith('sha256=')) return false;
+  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+  const provided = signatureHeader.slice('sha256='.length);
+  try {
+    const a = Buffer.from(expected, 'hex');
+    const b = Buffer.from(provided, 'hex');
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+```
+
+<Warning>
+  Use the raw body exactly as received. Re-serializing parsed JSON will break the signature.
+</Warning>
+
+## Express middleware pattern
+
+```javascript
+app.post('/hooks/inboundsage', express.raw({ type: 'application/json' }), (req, res) => {
+  const ok = verifyInboundSageWebhook(
+    process.env.WEBHOOK_SECRET,
+    req.body,
+    req.headers['x-inboundsage-signature'],
+  );
+  if (!ok) return res.status(401).send('Invalid signature');
+
+  const event = JSON.parse(req.body.toString());
+  // handle event.type, event.data
+  res.sendStatus(200);
+});
+```
+
+## Test your endpoint
+
+```bash
+curl -s -X POST https://api.inboundsage.com/v1/webhooks/$WEBHOOK_ID/test \
+  -H "Authorization: Bearer $TOKEN" | jq
+```
+
+Returns synchronous delivery result (`success`, `statusCode`, `duration_ms`).
+
+## Related
+
+- [Register webhook](/api-reference/webhooks/register)
+- [Event types](/api-reference/webhooks/events)

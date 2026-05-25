@@ -1,0 +1,52 @@
+---
+title: Errors
+description: API error codes and response format
+---
+
+# Errors
+
+InboundSage returns errors in a consistent JSON envelope:
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Template must be APPROVED",
+    "docs": "https://docs.inboundsage.com/errors/VALIDATION_ERROR"
+  }
+}
+```
+
+## Error codes
+
+| Code | HTTP | Description |
+| ---- | ---- | ----------- |
+| `VALIDATION_ERROR` | 400 | Invalid request body or parameters |
+| `INVALID_AUDIENCE` | 400 | Campaign audience invalid or empty |
+| `TEMPLATE_NOT_APPROVED` | 400 | Template not in APPROVED status |
+| `UNAUTHORIZED` | 401 | Missing or invalid authentication |
+| `INVALID_API_KEY` | 401 | API key invalid or revoked |
+| `INSUFFICIENT_ROLE` | 403 | JWT user lacks OWNER/ADMIN role |
+| `NOT_FOUND` | 404 | Resource not found |
+| `CAMPAIGN_NOT_DRAFT` | 400 | Invalid campaign state transition |
+| `IDEMPOTENCY_CONFLICT` | 409 | Same idempotency key, different body |
+| `WABA_NOT_CONNECTED` | 400 | WABA not active for tenant |
+| `PHONE_NUMBER_INACTIVE` | 400 | Phone number unavailable |
+| `RATE_LIMIT_EXCEEDED` | 429 | Too many requests |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+## Validation errors
+
+`VALIDATION_ERROR` often includes field-level detail from NestJS validation (non-whitelisted properties are rejected).
+
+## Meta errors
+
+Message and campaign sends may fail at the recipient level with Meta error codes (e.g. `132000` template not found). These appear in `CampaignRecipient.error` or message logs, not always as top-level API errors.
+
+## Retries
+
+| Status | Guidance |
+| ------ | -------- |
+| `429` | Back off using [rate limit headers](/rate-limits) |
+| `500` | Retry with exponential backoff |
+| `400` / `404` | Fix request; do not retry blindly |

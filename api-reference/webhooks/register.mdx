@@ -1,0 +1,65 @@
+---
+title: Register webhook
+description: POST /v1/webhooks
+---
+
+# Register webhook
+
+Subscribe to real-time events delivered to your HTTPS endpoint.
+
+## Request
+
+`POST /v1/webhooks`
+
+Requires **OWNER** or **ADMIN** (JWT) or API key.
+
+### Body
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `url` | string | Yes | HTTPS endpoint (max 2048 chars) |
+| `events` | string[] | Yes | One or more [event types](/api-reference/webhooks/events) |
+| `secret` | string | No | Custom `is_whsec_` + 24 chars; auto-generated if omitted |
+
+### Example
+
+```bash
+curl -s -X POST https://api.inboundsage.com/v1/webhooks \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-server.com/hooks/inboundsage",
+    "events": ["message.inbound", "message.delivered", "campaign.completed"]
+  }' | jq
+```
+
+## Response `201`
+
+```json
+{
+  "id": "uuid",
+  "url": "https://your-server.com/hooks/inboundsage",
+  "events": ["message.inbound", "message.delivered"],
+  "secretPrefix": "is_whsec_aBc",
+  "secret": "is_whsec_aBcXXXXXXXXXXXXXXXX",
+  "status": "ACTIVE"
+}
+```
+
+<Warning>
+  `secret` is shown **once**. Store it for [HMAC verification](/api-reference/webhooks/verify-signature). Subsequent `GET` responses only include `secretPrefix`.
+</Warning>
+
+## Manage webhooks
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| `GET` | `/v1/webhooks` | List webhooks |
+| `GET` | `/v1/webhooks/{id}` | Get one |
+| `PATCH` | `/v1/webhooks/{id}` | Update `url` or `events` |
+| `DELETE` | `/v1/webhooks/{id}` | Remove |
+| `POST` | `/v1/webhooks/{id}/test` | Synchronous test delivery |
+
+## Delivery
+
+Events are delivered asynchronously via a background worker (retries with exponential backoff). Each POST includes signed JSON — see [Verify signature](/api-reference/webhooks/verify-signature).

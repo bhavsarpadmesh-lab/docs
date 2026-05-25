@@ -1,0 +1,47 @@
+---
+title: Activate campaign
+description: POST /v1/campaigns/{id}/activate
+---
+
+# Activate campaign
+
+Start or schedule a campaign. Eligible statuses: `DRAFT`, `PAUSED`.
+
+## Request
+
+`POST /v1/campaigns/{id}/activate`
+
+### Behavior
+
+| Condition | Result |
+| --------- | ------ |
+| `scheduledAt` in the future | Status → `SCHEDULED`, job queued with delay |
+| Otherwise | Status → `RUNNING`, `startedAt` set, `campaign-send` worker enqueued |
+
+Emits `campaign.started` to subscribed webhooks.
+
+### Example
+
+```bash
+curl -s -X POST https://api.inboundsage.com/v1/campaigns/$CAMPAIGN_ID/activate \
+  -H "Authorization: Bearer $TOKEN" | jq '{status:.status}'
+```
+
+## Response
+
+```json
+{
+  "id": "uuid",
+  "status": "RUNNING",
+  "started_at": "2026-05-25T02:50:40.419Z",
+  "stats": { "total_count": 100, "queued_count": 100, "sent_count": 0 }
+}
+```
+
+## Related endpoints
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| `POST` | `/v1/campaigns/{id}/pause` | Pause RUNNING campaign, drain queue |
+| `POST` | `/v1/campaigns/{id}/cancel` | Cancel DRAFT, SCHEDULED, RUNNING, or PAUSED |
+| `GET` | `/v1/campaigns/{id}/stats` | Progress counters |

@@ -1,0 +1,79 @@
+---
+title: Send message
+description: POST /v1/messages/send
+---
+
+# Send message
+
+Send a WhatsApp message to a single recipient.
+
+<Note>
+  Supports [idempotency](/rate-limits#idempotency) via `Idempotency-Key` header.
+</Note>
+
+## Request
+
+`POST /v1/messages/send`
+
+### Headers
+
+| Header | Required | Description |
+| ------ | -------- | ----------- |
+| `Authorization` | Yes | `Bearer` JWT or API key |
+| `Content-Type` | Yes | `application/json` |
+| `Idempotency-Key` | No | Unique key; replays return cached response for 24h |
+
+### Body
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `waba_id` | string | Yes | WABA UUID |
+| `phone_number_id` | string | Yes | Phone number UUID |
+| `to` | string | Yes | Recipient phone (digits, no `+`) |
+| `type` | string | Yes | `text`, `template`, `image`, `document`, `audio`, `video` |
+| `text` | object | If type=text | `{ "body": "Hello" }` |
+| `template` | object | If type=template | `{ "name", "language", "components?" }` |
+| `image`, `document`, `audio`, `video` | object | If media type | Meta-compatible media payload |
+
+### Example — template message
+
+```bash
+curl -s -X POST https://api.inboundsage.com/v1/messages/send \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: msg-001" \
+  -d '{
+    "waba_id": "51444459-facf-43be-8f1a-e846447d7272",
+    "phone_number_id": "a45868f4-c101-488f-bb61-08964838f661",
+    "to": "919876543210",
+    "type": "template",
+    "template": {
+      "name": "new_test",
+      "language": "en"
+    }
+  }'
+```
+
+### Example — text message (within 24h window)
+
+```bash
+curl -s -X POST https://api.inboundsage.com/v1/messages/send \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "waba_id": "51444459-facf-43be-8f1a-e846447d7272",
+    "phone_number_id": "a45868f4-c101-488f-bb61-08964838f661",
+    "to": "919876543210",
+    "type": "text",
+    "text": { "body": "Thanks for your order!" }
+  }'
+```
+
+## Response
+
+Returns message log details including `id`, `status`, and `metaMessageId` when sent via Meta.
+
+## Related
+
+- [Templates](/concepts/templates)
+- [Webhook events](/api-reference/webhooks/events) — `message.sent`, `message.delivered`, `message.read`

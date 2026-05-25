@@ -1,0 +1,66 @@
+---
+title: Authentication
+description: API keys and JWT tokens for InboundSage
+---
+
+# Authentication
+
+InboundSage supports two authentication methods. Both use the `Authorization` header:
+
+```
+Authorization: Bearer <token>
+```
+
+## API keys
+
+API keys are the recommended method for server-to-server integrations.
+
+| Property | Value |
+| -------- | ----- |
+| Prefix | `is_live_` |
+| Scope | Single tenant (workspace) |
+| Roles | Full developer API access for OWNER/ADMIN operations |
+
+Create and rotate keys in the [API Keys dashboard](https://app.inboundsage.com/api-keys).
+
+```bash
+curl -s https://api.inboundsage.com/v1/wabas \
+  -H "Authorization: Bearer is_live_xxxxxxxx"
+```
+
+<Warning>
+  Never expose API keys in client-side code or public repositories.
+</Warning>
+
+## JWT (session token)
+
+Use JWTs when building on behalf of a logged-in dashboard user.
+
+```bash
+curl -s -X POST https://api.inboundsage.com/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@company.com","password":"your-password"}'
+```
+
+Response:
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "refreshToken": "..."
+}
+```
+
+Use `accessToken` as the Bearer token. Refresh before expiry via `POST /v1/auth/refresh`.
+
+## Required roles
+
+Developer API endpoints (`/v1/campaigns`, `/v1/webhooks`) require **OWNER** or **ADMIN** role when using JWT. API keys bypass role checks but remain tenant-scoped.
+
+## Multi-tenancy
+
+Every token is bound to one **tenant** (workspace). Resources created under a token are isolated — webhooks, campaigns, and messages only belong to that tenant.
+
+<Note>
+  If webhooks never fire for inbound messages, confirm the webhook was created under the same tenant as the connected WABA.
+</Note>
