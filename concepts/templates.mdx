@@ -1,51 +1,8 @@
 ---
-title: Message templates
-description: Approved WhatsApp templates for outbound messaging
+title: Templates
+description: Pre-approved WhatsApp message templates
 ---
 
-# Message templates
+# Templates
 
-WhatsApp requires **pre-approved templates** for business-initiated conversations outside the 24-hour customer service window.
-
-## Template lifecycle
-
-| Status | Meaning |
-| ------ | ------- |
-| `PENDING` | Submitted to Meta, not sendable |
-| `APPROVED` | Ready to use via API |
-| `REJECTED` | Cannot be used |
-
-Sync templates from Meta via the dashboard or `GET /v1/templates`.
-
-## List templates
-
-```bash
-curl -s https://api.inboundsage.com/v1/templates \
-  -H "Authorization: Bearer $TOKEN" \
-  | jq '[.items[] | select(.status=="APPROVED")] | map({id, name, language})'
-```
-
-## Components
-
-Templates include `components` (HEADER, BODY, FOOTER, BUTTONS). Variable placeholders use `{{1}}`, `{{name}}`, etc.
-
-### Media headers
-
-IMAGE, VIDEO, and DOCUMENT headers require a public HTTPS URL at send time. For campaigns, pass:
-
-```json
-"variables": {
-  "__headerMediaUrl": "https://api.inboundsage.com/uploads/.../image.png"
-}
-```
-
-Upload media via `POST /v1/media/upload` and use the returned `publicUrl`.
-
-## Campaigns vs single send
-
-- **Single send:** `POST /v1/messages/send` with `type: "template"`
-- **Campaigns:** Reference `templateId` (InboundSage UUID); per-recipient `variables` map template placeholders
-
-<Warning>
-  A template marked APPROVED in InboundSage must also be valid on Meta for the WABA. Error `132000` means Meta rejected the template name/language combination.
-</Warning>
+WhatsApp requires **approved templates** for business-initiated messages outside the 24-hour window. Sync and manage templates in the dashboard; list them with `GET /v1/templates` (`items[]`, status `APPROVED`).

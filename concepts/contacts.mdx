@@ -1,43 +1,8 @@
 ---
-title: Contacts and audiences
-description: Contacts, segments, and campaign audiences
+title: Contacts
+description: Audience records for campaigns and messaging
 ---
 
-# Contacts and audiences
+# Contacts
 
-Contacts are WhatsApp recipients stored per tenant, with opt-in status, tags, and journey history.
-
-## Contact model
-
-| Field | Description |
-| ----- | ----------- |
-| `phone` | E.164-style digits (e.g. `919876543210`) |
-| `optInStatus` | `OPTED_IN`, `OPTED_OUT`, etc. |
-| `tags`, `leadStage` | Used for segmentation |
-
-Opted-out contacts are **skipped** automatically in campaigns (counted as `opted_out_count`).
-
-## Segments
-
-Segments are saved audience filters (`GET/POST /v1/segments`). Use a segment when creating campaigns:
-
-```json
-{
-  "audienceType": "SEGMENT",
-  "segmentId": "uuid-of-segment"
-}
-```
-
-Contacts matching the segment filter at create time are expanded into `CampaignRecipient` rows.
-
-## Campaign audience types
-
-| `audienceType` | Required fields |
-| -------------- | --------------- |
-| `SEGMENT` | `segmentId` |
-| `CONTACTS` | `contactIds[]` |
-| `INLINE` | `contacts[]` with `phone` and optional `variables` |
-
-## Dashboard vs API
-
-Contact import and tagging are available via dashboard and `POST /v1/contacts` endpoints. The Developer API focuses on **campaign audience selection** from existing contacts or inline phone lists.
+**Contacts** are recipients stored per tenant with phone, opt-in status, and tags. Use `SEGMENT`, `CONTACTS`, or `INLINE` audience types when creating campaigns.

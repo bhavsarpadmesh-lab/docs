@@ -1,38 +1,8 @@
 ---
-title: WhatsApp Business Accounts
-description: WABAs and phone numbers in InboundSage
+title: WABAs
+description: WhatsApp Business Accounts in InboundSage
 ---
 
-# WhatsApp Business Accounts (WABAs)
+# WABAs
 
-A **WABA** is your WhatsApp Business Account on Meta. InboundSage stores the connection, access token (encrypted), and linked **phone numbers** used for sending.
-
-## Key resources
-
-| Resource | Description |
-| -------- | ----------- |
-| `Waba` | Meta WABA linked to your tenant |
-| `PhoneNumber` | A sending number under the WABA (`metaPhoneId` used with Meta's API) |
-
-## List WABAs
-
-```bash
-GET /v1/wabas
-```
-
-Returns WABAs with nested `phoneNumbers` (id, display number, quality rating).
-
-## Quality rating
-
-Meta assigns a **quality rating** per phone number (`GREEN`, `YELLOW`, `RED`). InboundSage syncs this hourly and emits `waba.quality_changed` webhooks when it changes. RED quality may auto-pause running broadcasts.
-
-## IDs in API calls
-
-Most send and campaign endpoints require:
-
-- `wabaId` — InboundSage UUID from `GET /v1/wabas`
-- `phoneNumberId` — InboundSage phone UUID (not the Meta `phone_number_id` string directly in campaign create; the API resolves it)
-
-## Onboarding
-
-New WABAs are connected via the [dashboard onboarding flow](https://app.inboundsage.com). The Developer API assumes onboarding is complete before sending.
+A **WhatsApp Business Account (WABA)** is your Meta business identity linked to InboundSage. Connect it in the [dashboard](https://app.inboundsage.com) to get `waba_id` and `phone_number_id` values for the API. List connected WABAs with `GET /v1/wabas`.

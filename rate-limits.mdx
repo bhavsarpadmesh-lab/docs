@@ -19,13 +19,13 @@ Rate limit status is returned on every response:
 | `X-RateLimit-Remaining` | Requests remaining in current window |
 | `X-RateLimit-Reset` | Unix timestamp when the window resets |
 
-When you exceed the limit, the API returns `429` with error code `RATE_LIMIT_EXCEEDED`:
+When exceeded:
 
 ```json
 {
   "error": {
     "code": "RATE_LIMIT_EXCEEDED",
-    "message": "Too many requests",
+    "message": "Too many requests. Retry after 1716595200.",
     "docs": "https://docs.inboundsage.com/errors/RATE_LIMIT_EXCEEDED"
   }
 }
