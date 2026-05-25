@@ -1,96 +1,54 @@
 ---
-title: Webhook events
-description: Event types and payload envelope
+title: Event Catalog
+description: All webhook events emitted by InboundSage
 ---
 
-# Webhook events
+# Event Catalog
 
-InboundSage delivers events in a Stripe-style envelope to your registered URL.
-
-## Envelope
-
-Every delivery is a JSON POST:
+Every event follows this envelope:
 
 ```json
 {
-  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "id": "evt_uuid",
   "type": "message.inbound",
-  "created_at": "2026-05-25T02:15:26.921Z",
+  "created_at": "2026-05-25T02:25:29.000Z",
   "data": { }
 }
 ```
 
-| Field | Description |
-| ----- | ----------- |
-| `id` | Unique event id (same for all subscribers on this emission) |
-| `type` | Event type string |
-| `created_at` | ISO 8601 timestamp |
-| `data` | Event-specific payload |
+Deliveries include headers `X-InboundSage-Event`, `X-InboundSage-Delivery`, and `X-InboundSage-Signature`.
 
-## HTTP headers
+## Message Events
 
-| Header | Description |
-| ------ | ----------- |
-| `Content-Type` | `application/json` |
-| `X-InboundSage-Event` | Event type (e.g. `message.inbound`) |
-| `X-InboundSage-Delivery` | Event id |
-| `X-InboundSage-Signature` | `sha256=<hmac>` of raw body |
+| Event | When |
+|-------|------|
+| `message.inbound` | Customer sends a message to your WABA |
+| `message.sent` | Meta accepted your outbound message |
+| `message.delivered` | Delivered to customer device |
+| `message.read` | Customer opened the message |
+| `message.failed` | Meta rejected or failed delivery |
 
-## Event types
+## Campaign Events
 
-### Messages
-
-| Type | When |
-| ---- | ---- |
-| `message.inbound` | New inbound WhatsApp message stored |
-| `message.sent` | Outbound message status: sent |
-| `message.delivered` | Delivered |
-| `message.read` | Read |
-| `message.failed` | Failed |
-
-**`message.inbound` data example:**
-
-```json
-{
-  "message_id": "uuid",
-  "meta_message_id": "wamid.xxx",
-  "conversation_id": "uuid",
-  "contact_id": "uuid",
-  "from": "919876543210",
-  "type": "text",
-  "preview": "Hello",
-  "timestamp": "2026-05-25T02:15:26.921Z"
-}
-```
-
-### Campaigns
-
-| Type | When |
-| ---- | ---- |
-| `campaign.started` | Campaign activated or scheduled job started |
+| Event | When |
+|-------|------|
+| `campaign.started` | Campaign transitions to RUNNING |
 | `campaign.completed` | All recipients processed |
 | `campaign.paused` | Campaign paused |
 
-### Contacts
+## Other Events
 
-| Type | When |
-| ---- | ---- |
-| `contact.opted_out` | Contact opted out via inbound keyword |
+| Event | When |
+|-------|------|
+| `contact.opted_out` | Customer sent STOP |
+| `template.approved` | Meta approved a template |
+| `template.rejected` | Meta rejected a template |
+| `waba.quality_changed` | WABA quality rating changed |
+| `webhook.test` | Test delivery from the API |
 
-### Templates & WABA
+## Retry Policy
 
-| Type | When |
-| ---- | ---- |
-| `template.approved` | Template approved (future) |
-| `template.rejected` | Template rejected (future) |
-| `waba.quality_changed` | Phone quality rating changed |
+Failed deliveries are retried with exponential backoff:
+`5s → 30s → 5m → 30m → 2h` (up to **5 attempts**).
 
-### Testing
-
-| Type | When |
-| ---- | ---- |
-| `webhook.test` | `POST /v1/webhooks/{id}/test` |
-
-## Retries
-
-Failed deliveries (non-2xx or timeout) retry up to **5 times** with exponential backoff. After repeated failures the webhook moves to `FAILING` and may be `DISABLED`.
+After repeated failures the webhook status becomes `FAILING`, then `DISABLED` after more than five consecutive delivery failures.

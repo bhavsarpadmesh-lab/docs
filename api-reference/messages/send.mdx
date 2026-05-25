@@ -1,79 +1,69 @@
 ---
-title: Send message
+title: Send Message
 description: POST /v1/messages/send
 ---
 
-# Send message
-
-Send a WhatsApp message to a single recipient.
-
-<Note>
-  Supports [idempotency](/rate-limits#idempotency) via `Idempotency-Key` header.
-</Note>
-
-## Request
+# Send Message
 
 `POST /v1/messages/send`
 
-### Headers
+Send a WhatsApp message to a single recipient.
 
-| Header | Required | Description |
-| ------ | -------- | ----------- |
-| `Authorization` | Yes | `Bearer` JWT or API key |
-| `Content-Type` | Yes | `application/json` |
-| `Idempotency-Key` | No | Unique key; replays return cached response for 24h |
-
-### Body
-
-| Field | Type | Required | Description |
-| ----- | ---- | -------- | ----------- |
-| `waba_id` | string | Yes | WABA UUID |
-| `phone_number_id` | string | Yes | Phone number UUID |
-| `to` | string | Yes | Recipient phone (digits, no `+`) |
-| `type` | string | Yes | `text`, `template`, `image`, `document`, `audio`, `video` |
-| `text` | object | If type=text | `{ "body": "Hello" }` |
-| `template` | object | If type=template | `{ "name", "language", "components?" }` |
-| `image`, `document`, `audio`, `video` | object | If media type | Meta-compatible media payload |
-
-### Example — template message
+## Request
 
 ```bash
-curl -s -X POST https://api.inboundsage.com/v1/messages/send \
-  -H "Authorization: Bearer $TOKEN" \
+curl -X POST https://api.inboundsage.com/v1/messages/send \
+  -H "Authorization: Bearer is_live_YOUR_KEY" \
   -H "Content-Type: application/json" \
-  -H "Idempotency-Key: msg-001" \
   -d '{
-    "waba_id": "51444459-facf-43be-8f1a-e846447d7272",
-    "phone_number_id": "a45868f4-c101-488f-bb61-08964838f661",
+    "waba_id": "YOUR_WABA_ID",
+    "phone_number_id": "YOUR_PHONE_NUMBER_ID",
     "to": "919876543210",
     "type": "template",
     "template": {
-      "name": "new_test",
-      "language": "en"
+      "name": "your_template",
+      "language": "en",
+      "components": [
+        {
+          "type": "body",
+          "parameters": [
+            { "type": "text", "text": "Padmesh" }
+          ]
+        }
+      ]
     }
   }'
 ```
 
-### Example — text message (within 24h window)
+<Note>
+  `language` is an ISO code string (e.g. `"en"`). InboundSage forwards it to Meta as `{ "code": "en" }`. Optional `components` are passed through to the WhatsApp Cloud API.
+</Note>
 
-```bash
-curl -s -X POST https://api.inboundsage.com/v1/messages/send \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "waba_id": "51444459-facf-43be-8f1a-e846447d7272",
-    "phone_number_id": "a45868f4-c101-488f-bb61-08964838f661",
-    "to": "919876543210",
-    "type": "text",
-    "text": { "body": "Thanks for your order!" }
-  }'
-```
+## Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `waba_id` | string | ✓ | Your WABA UUID |
+| `phone_number_id` | string | ✓ | Your WhatsApp phone number ID |
+| `to` | string | ✓ | Recipient digits without `+` (e.g. `919876543210`) |
+| `type` | string | ✓ | `text`, `template`, `image`, `document`, `audio`, `video` |
+| `template` | object | if type=template | `name`, `language`, optional `components` |
+| `text` | object | if type=text | `{ "body": "Hello" }` |
+
+Supports [Idempotency-Key](/authentication#idempotency) for safe retries.
 
 ## Response
 
-Returns message log details including `id`, `status`, and `metaMessageId` when sent via Meta.
+```json
+{
+  "id": "fb704de9-e670-4532-ae8e-57aad4268728",
+  "meta_message_id": "wamid.HBgMOTE5OTIy...",
+  "status": "QUEUED"
+}
+```
 
-## Related
-
-- [Templates](/concepts/templates)
-- [Webhook events](/api-reference/webhooks/events) — `message.sent`, `message.delivered`, `message.read`
+<Note>
+  Outside the 24-hour customer service window, only approved template
+  messages can be sent. Free-form text is allowed within 24 hours of
+  the customer's last message.
+</Note>

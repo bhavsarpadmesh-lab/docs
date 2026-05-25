@@ -1,64 +1,69 @@
 ---
-title: Verify webhook signature
-description: HMAC-SHA256 verification for webhook deliveries
+title: Verify Signature
+description: Validate incoming webhook payloads
 ---
 
-# Verify webhook signature
+# Verify Signature
 
-Verify that each webhook POST originated from InboundSage before processing the payload.
+Every webhook request includes:
 
-## Algorithm
+| Header | Description |
+| ------ | ----------- |
+| `Content-Type` | `application/json` |
+| `X-InboundSage-Event` | Event type (e.g. `message.inbound`) |
+| `X-InboundSage-Delivery` | Event id (same as envelope `id`) |
+| `X-InboundSage-Signature` | `sha256=<hmac_hex>` of the raw body |
 
-1. Read the **raw request body** (bytes, before JSON parsing).
-2. Decrypt or load your webhook secret (`is_whsec_…` from create response).
-3. Compute `HMAC-SHA256(secret, rawBody)` as lowercase hex.
-4. Compare to header `X-InboundSage-Signature: sha256=<hex>` using constant-time comparison.
+Verify the signature using your webhook secret:
 
-## Node.js example
+<CodeGroup>
 
-```javascript
-import { createHmac, timingSafeEqual } from 'crypto';
+```javascript Node.js
+const crypto = require('crypto');
 
-function verifyInboundSageWebhook(secret, rawBody, signatureHeader) {
-  if (!signatureHeader?.startsWith('sha256=')) return false;
-  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
-  const provided = signatureHeader.slice('sha256='.length);
-  try {
-    const a = Buffer.from(expected, 'hex');
-    const b = Buffer.from(provided, 'hex');
-    return a.length === b.length && timingSafeEqual(a, b);
-  } catch {
-    return false;
+app.post('/webhooks/inboundsage', (req, res) => {
+  const signature = req.headers['x-inboundsage-signature'];
+  const rawBody = req.rawBody; // must be raw bytes, not parsed JSON
+
+  const expected = 'sha256=' + crypto
+    .createHmac('sha256', process.env.INBOUNDSAGE_WEBHOOK_SECRET)
+    .update(rawBody)
+    .digest('hex');
+
+  if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))) {
+    return res.status(401).send('Invalid signature');
   }
-}
-```
 
-<Warning>
-  Use the raw body exactly as received. Re-serializing parsed JSON will break the signature.
-</Warning>
-
-## Express middleware pattern
-
-```javascript
-app.post('/hooks/inboundsage', express.raw({ type: 'application/json' }), (req, res) => {
-  const ok = verifyInboundSageWebhook(
-    process.env.WEBHOOK_SECRET,
-    req.body,
-    req.headers['x-inboundsage-signature'],
-  );
-  if (!ok) return res.status(401).send('Invalid signature');
-
-  const event = JSON.parse(req.body.toString());
-  // handle event.type, event.data
+  const event = req.body;
+  console.log(event.type, event.data);
   res.sendStatus(200);
 });
 ```
 
+```python Python
+import hmac, hashlib
+
+def verify_signature(secret: str, raw_body: bytes, signature: str) -> bool:
+    expected = 'sha256=' + hmac.new(
+        secret.encode(), raw_body, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+```
+
+</CodeGroup>
+
+<Warning>
+  Always verify signatures on raw bytes — before JSON parsing.
+  Never verify against a re-serialized body.
+</Warning>
+
+For Express, use `express.raw({ type: 'application/json' })` and parse JSON only after verification.
+
 ## Test your endpoint
 
 ```bash
-curl -s -X POST https://api.inboundsage.com/v1/webhooks/$WEBHOOK_ID/test \
-  -H "Authorization: Bearer $TOKEN" | jq
+curl -X POST https://api.inboundsage.com/v1/webhooks/WEBHOOK_ID/test \
+  -H "Authorization: Bearer is_live_YOUR_KEY"
 ```
 
 Returns synchronous delivery result (`success`, `statusCode`, `duration_ms`).
@@ -66,4 +71,4 @@ Returns synchronous delivery result (`success`, `statusCode`, `duration_ms`).
 ## Related
 
 - [Register webhook](/api-reference/webhooks/register)
-- [Event types](/api-reference/webhooks/events)
+- [Event catalog](/api-reference/webhooks/events)

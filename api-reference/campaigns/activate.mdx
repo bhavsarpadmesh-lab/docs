@@ -1,47 +1,34 @@
 ---
-title: Activate campaign
-description: POST /v1/campaigns/{id}/activate
+title: Activate Campaign
+description: POST /v1/campaigns/:id/activate
 ---
 
-# Activate campaign
+# Activate Campaign
 
-Start or schedule a campaign. Eligible statuses: `DRAFT`, `PAUSED`.
+`POST /v1/campaigns/:id/activate`
 
-## Request
-
-`POST /v1/campaigns/{id}/activate`
-
-### Behavior
-
-| Condition | Result |
-| --------- | ------ |
-| `scheduledAt` in the future | Status → `SCHEDULED`, job queued with delay |
-| Otherwise | Status → `RUNNING`, `startedAt` set, `campaign-send` worker enqueued |
-
-Emits `campaign.started` to subscribed webhooks.
-
-### Example
+Start sending a `DRAFT` or `PAUSED` campaign.
+If `scheduledAt` is set and in the future, status becomes `SCHEDULED`.
+Otherwise it becomes `RUNNING` immediately.
 
 ```bash
-curl -s -X POST https://api.inboundsage.com/v1/campaigns/$CAMPAIGN_ID/activate \
-  -H "Authorization: Bearer $TOKEN" | jq '{status:.status}'
+curl -X POST https://api.inboundsage.com/v1/campaigns/CAMPAIGN_ID/activate \
+  -H "Authorization: Bearer is_live_YOUR_KEY"
 ```
 
-## Response
-
-```json
+```json Response
 {
-  "id": "uuid",
+  "id": "5832df51-...",
   "status": "RUNNING",
-  "started_at": "2026-05-25T02:50:40.419Z",
-  "stats": { "total_count": 100, "queued_count": 100, "sent_count": 0 }
+  "started_at": "2026-05-25T02:25:29.000Z"
 }
 ```
 
-## Related endpoints
+Emits `campaign.started` to subscribed webhooks.
 
-| Method | Path | Description |
-| ------ | ---- | ----------- |
-| `POST` | `/v1/campaigns/{id}/pause` | Pause RUNNING campaign, drain queue |
-| `POST` | `/v1/campaigns/{id}/cancel` | Cancel DRAFT, SCHEDULED, RUNNING, or PAUSED |
-| `GET` | `/v1/campaigns/{id}/stats` | Progress counters |
+## Other campaign actions
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /v1/campaigns/:id/pause` | Pause a running campaign |
+| `POST /v1/campaigns/:id/cancel` | Cancel permanently |

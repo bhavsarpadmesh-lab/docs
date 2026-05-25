@@ -1,27 +1,25 @@
 ---
-title: Rate limits
-description: Throttling, response headers, and idempotency
+title: Rate Limits
+description: Request limits per API key
 ---
 
-# Rate limits
+# Rate Limits
 
-InboundSage applies per-tenant rate limits to protect the platform and comply with Meta throughput rules.
+| Plan | Requests/minute |
+|------|----------------|
+| Starter | 100 |
+| Growth | 500 |
+| Scale | 1000 |
 
-## Response headers
-
-Every API response may include:
+Rate limit status is returned on every response:
 
 | Header | Description |
-| ------ | ----------- |
-| `X-RateLimit-Limit` | Max requests per window |
-| `X-RateLimit-Remaining` | Requests left in current window |
+|--------|-------------|
+| `X-RateLimit-Limit` | Requests allowed per window |
+| `X-RateLimit-Remaining` | Requests remaining in current window |
 | `X-RateLimit-Reset` | Unix timestamp when the window resets |
 
-Default limit is **100 requests per 60 seconds** per tenant (configurable server-side).
-
-## Exceeded limit
-
-When limited, the API returns `429` with:
+When you exceed the limit, the API returns `429` with error code `RATE_LIMIT_EXCEEDED`:
 
 ```json
 {
@@ -33,33 +31,10 @@ When limited, the API returns `429` with:
 }
 ```
 
-## Campaign sending limits
+## Campaign throughput
 
-Campaign workers respect **per phone number** rate limits and Meta tier caps via an internal token bucket. Campaigns may auto-pause with status `PAUSED` when daily limits or WABA quality (`RED`) block further sends.
+Campaign sending uses a separate **per phone number** token bucket aligned with Meta tier limits. A campaign may move to `PAUSED` when daily limits are reached or WABA quality is `RED`.
 
 ## Idempotency
 
-Safe retry for `POST` operations without duplicate side effects:
-
-| Endpoint | Header |
-| -------- | ------ |
-| `POST /v1/messages/send` | `Idempotency-Key` or `X-Idempotency-Key` |
-| `POST /v1/campaigns` | `Idempotency-Key` or `X-Idempotency-Key` |
-
-### Behavior
-
-- Same tenant + key within **24 hours** returns the cached response (including status code).
-- Same key with a **different body** returns `409` `IDEMPOTENCY_CONFLICT`.
-- Omitting the header allows duplicate requests (not recommended for production).
-
-### Example
-
-```bash
-curl -s -X POST https://api.inboundsage.com/v1/campaigns \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Idempotency-Key: create-campaign-v1" \
-  -H "Content-Type: application/json" \
-  -d '{ ... }'
-```
-
-Replay the same request with the same key to get the original `201` response without creating a second campaign.
+For safe retries on `POST /v1/messages/send` and `POST /v1/campaigns`, use the `Idempotency-Key` header. See [Authentication → Idempotency](/authentication#idempotency).
