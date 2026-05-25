@@ -1,27 +1,32 @@
 ---
 title: Authentication
-description: API keys and rate limits
+description: API keys, JWT, rate limits, and idempotency
 ---
 
 # Authentication
 
 ## API keys
 
-All API requests require an API key passed in the `Authorization` header:
+All API requests require a Bearer token in the `Authorization` header:
 
 ```
 Authorization: Bearer is_live_YOUR_KEY
 ```
 
-Keys are prefixed with `is_live_` (production) or `is_test_` (test mode).
+### Key prefixes
+
+| Prefix | Type | Use |
+|--------|------|-----|
+| `is_live_` | Production API key | Server-side REST calls |
+| `is_test_` | Test API key | Sandbox / integration tests |
+| `is_whsec_` | Webhook signing secret | Verify `X-InboundSage-Signature` only — not an API credential |
 
 <Note>
-  Create and manage API keys in the
-  [dashboard](https://app.inboundsage.com/api-keys).
-  Keys are shown only once at creation time.
+  Create API keys in the [dashboard](https://app.inboundsage.com/api-keys).
+  Keys are shown **once** at creation. Webhook secrets are returned once when you `POST /v1/webhooks`.
 </Note>
 
-Each key is scoped to one **tenant** (workspace) and grants access to that workspace's WABAs, templates, campaigns, and webhooks.
+Each API key is scoped to one **tenant** (workspace) and grants access to that tenant's WABAs, templates, campaigns, and webhooks.
 
 ```bash
 curl -s https://api.inboundsage.com/v1/wabas \
@@ -29,12 +34,12 @@ curl -s https://api.inboundsage.com/v1/wabas \
 ```
 
 <Warning>
-  Never commit API keys to source control or expose them in browser-side code.
+  Never commit API keys or webhook secrets to source control or expose them in browser-side code.
 </Warning>
 
 ## JWT (dashboard sessions)
 
-For tools built on top of the logged-in dashboard, authenticate users with JWT:
+For apps built on the logged-in dashboard, obtain a JWT:
 
 ```bash
 curl -s -X POST https://api.inboundsage.com/v1/auth/login \
@@ -42,45 +47,71 @@ curl -s -X POST https://api.inboundsage.com/v1/auth/login \
   -d '{"email":"you@company.com","password":"your-password"}'
 ```
 
-Use the returned `accessToken` as the Bearer token. Refresh via `POST /v1/auth/refresh`.
+Use `accessToken` as the Bearer token. Refresh with `POST /v1/auth/refresh`.
 
 Developer endpoints (`/v1/campaigns`, `/v1/webhooks`) require **OWNER** or **ADMIN** when using JWT. API keys are not role-restricted but remain tenant-scoped.
 
 ## Rate limits
 
-Every response includes rate limit headers:
+Limits apply per API key / tenant. Plan tiers:
+
+| Plan | Requests/minute |
+|------|----------------|
+| Starter | 100 |
+| Growth | 500 |
+| Scale | 1000 |
+
+Every response includes:
 
 | Header | Description |
 |--------|-------------|
 | `X-RateLimit-Limit` | Requests allowed per window |
-| `X-RateLimit-Remaining` | Requests remaining in current window |
+| `X-RateLimit-Remaining` | Requests remaining in the current window |
 | `X-RateLimit-Reset` | Unix timestamp when the window resets |
 
-When you exceed the limit, the API returns `429` with error code `RATE_LIMIT_EXCEEDED`.
+When exceeded, the API returns `429`:
 
-Default limit is **100 requests per 60 seconds** per tenant. See [Rate limits](/rate-limits) for campaign throughput and Meta tier behavior.
+```json
+{
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests. Retry after 1716595200.",
+    "docs": "https://docs.inboundsage.com/errors/RATE_LIMIT_EXCEEDED"
+  }
+}
+```
+
+Use the `Retry after` timestamp (also `X-RateLimit-Reset`) before retrying. See [Rate limits](/rate-limits) for campaign throughput and Meta tier behavior.
 
 ## Idempotency
 
-For `POST` requests, pass an `Idempotency-Key` header to safely retry without duplicate operations:
+Pass `Idempotency-Key` (or `X-Idempotency-Key`) on `POST` requests to safely retry without duplicate side effects:
 
-| Endpoint | Header |
-| -------- | ------ |
-| `POST /v1/messages/send` | `Idempotency-Key` or `X-Idempotency-Key` |
-| `POST /v1/campaigns` | `Idempotency-Key` or `X-Idempotency-Key` |
+| Endpoint | Supported |
+|----------|-----------|
+| `POST /v1/messages/send` | Yes |
+| `POST /v1/campaigns` | Yes |
 
-- The same key returns the original response for **24 hours** (per tenant).
-- Same key with a **different body** returns `409` with `IDEMPOTENCY_CONFLICT`.
-- Omitting the header allows duplicate requests (not recommended in production).
+Rules:
+
+- **Same key + same body** — returns the original response for **24 hours** (per tenant).
+- **Same key + different body** — `409` with `IDEMPOTENCY_CONFLICT`.
+- **No header** — each request is processed independently (avoid in production).
 
 ```bash
-curl -s -X POST https://api.inboundsage.com/v1/campaigns \
+curl -s -X POST https://api.inboundsage.com/v1/messages/send \
   -H "Authorization: Bearer is_live_YOUR_KEY" \
-  -H "Idempotency-Key: create-campaign-v1" \
+  -H "Idempotency-Key: send-msg-001" \
   -H "Content-Type: application/json" \
-  -d '{ ... }'
+  -d '{
+    "waba_id": "YOUR_WABA_ID",
+    "phone_number_id": "YOUR_PHONE_NUMBER_ID",
+    "to": "919876543210",
+    "type": "template",
+    "template": { "name": "your_template", "language": "en" }
+  }'
 ```
 
 ## Multi-tenancy
 
-Tokens are bound to a single tenant. Webhooks, campaigns, and inbound events only match resources in that workspace — create keys and webhooks under the same tenant as your connected WABA.
+Tokens are bound to a single tenant. Webhooks, campaigns, and events only apply to resources in that workspace — use API keys and webhooks under the same tenant as your connected WABA.
