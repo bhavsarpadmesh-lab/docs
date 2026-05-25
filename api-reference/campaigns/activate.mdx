@@ -24,7 +24,7 @@ curl -X POST https://api.inboundsage.com/v1/campaigns/CAMPAIGN_ID/activate \
 }
 ```
 
-Emits `campaign.started` to subscribed webhooks.
+Emits `campaign.started` to subscribed webhooks. Idempotency does not apply to activate — only to [create](/api-reference/campaigns/create).
 
 ## Other campaign actions
 

@@ -48,3 +48,5 @@ curl -X POST https://api.inboundsage.com/v1/webhooks \
 | `PATCH` | `/v1/webhooks/:id` | Update `url` or `events` |
 | `DELETE` | `/v1/webhooks/:id` | Remove |
 | `POST` | `/v1/webhooks/:id/test` | Synchronous test delivery |
+
+Requires **OWNER** or **ADMIN** when using JWT. API keys work for all listed routes on the tenant.

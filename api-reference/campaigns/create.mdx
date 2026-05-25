@@ -10,6 +10,8 @@ description: POST /v1/campaigns
 Create a campaign in `DRAFT` status with an audience.
 Activate it separately to start sending.
 
+Supports [`Idempotency-Key`](/authentication#idempotency) (max 255 characters). Reusing the same key within 24 hours returns the original campaign without creating a duplicate.
+
 ## Request
 
 ```bash

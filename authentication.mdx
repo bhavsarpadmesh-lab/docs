@@ -85,18 +85,21 @@ Use the `Retry after` timestamp (also `X-RateLimit-Reset`) before retrying. See 
 
 ## Idempotency
 
-Pass `Idempotency-Key` (or `X-Idempotency-Key`) on `POST` requests to safely retry without duplicate side effects:
+Pass `Idempotency-Key` or `X-Idempotency-Key` on supported `POST` endpoints to safely retry network failures without duplicate sends or campaigns.
 
-| Endpoint | Supported |
-|----------|-----------|
-| `POST /v1/messages/send` | Yes |
-| `POST /v1/campaigns` | Yes |
+| Endpoint | Idempotent |
+|----------|------------|
+| [`POST /v1/messages/send`](/api-reference/messages/send) | Yes |
+| [`POST /v1/campaigns`](/api-reference/campaigns/create) | Yes |
 
-Rules:
+| Rule | Behavior |
+|------|----------|
+| Same key, same request (within **24h**, per tenant) | Returns the cached response (HTTP status + body) |
+| Same key, different body | `409` — `IDEMPOTENCY_CONFLICT` |
+| Key longer than 255 chars | `400` — `VALIDATION_ERROR` |
+| Header omitted | Request is always processed (not recommended in production) |
 
-- **Same key + same body** — returns the original response for **24 hours** (per tenant).
-- **Same key + different body** — `409` with `IDEMPOTENCY_CONFLICT`.
-- **No header** — each request is processed independently (avoid in production).
+### Message send
 
 ```bash
 curl -s -X POST https://api.inboundsage.com/v1/messages/send \
@@ -111,6 +114,25 @@ curl -s -X POST https://api.inboundsage.com/v1/messages/send \
     "template": { "name": "your_template", "language": "en" }
   }'
 ```
+
+### Create campaign
+
+```bash
+curl -s -X POST https://api.inboundsage.com/v1/campaigns \
+  -H "Authorization: Bearer is_live_YOUR_KEY" \
+  -H "Idempotency-Key: campaign-launch-001" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "May Offer",
+    "wabaId": "YOUR_WABA_ID",
+    "phoneNumberId": "YOUR_PHONE_NUMBER_ID",
+    "templateId": "YOUR_TEMPLATE_ID",
+    "audienceType": "INLINE",
+    "contacts": [{ "phone": "919876543210" }]
+  }'
+```
+
+Use a unique key per logical operation (e.g. `send-order-48291`, not a static string reused across different recipients).
 
 ## Multi-tenancy
 
