@@ -1,40 +1,38 @@
 ---
 title: Authentication
-description: API keys and JWT tokens for InboundSage
+description: API keys and rate limits
 ---
 
 # Authentication
 
-InboundSage supports two authentication methods. Both use the `Authorization` header:
-
-```
-Authorization: Bearer <token>
-```
-
 ## API keys
 
-API keys are the recommended method for server-to-server integrations.
+All API requests require an API key passed in the `Authorization` header:
+
+```
+Authorization: Bearer is_live_YOUR_KEY
+```
+
+Create keys at [app.inboundsage.com/api-keys](https://app.inboundsage.com/api-keys). Each key is scoped to one **tenant** (workspace) and grants access to that workspace's WABAs, templates, campaigns, and webhooks.
 
 | Property | Value |
 | -------- | ----- |
 | Prefix | `is_live_` |
-| Scope | Single tenant (workspace) |
-| Roles | Full developer API access for OWNER/ADMIN operations |
-
-Create and rotate keys in the [API Keys dashboard](https://app.inboundsage.com/api-keys).
+| Shown once | Yes — copy at creation |
+| Storage | Environment variable or secrets manager |
 
 ```bash
 curl -s https://api.inboundsage.com/v1/wabas \
-  -H "Authorization: Bearer is_live_xxxxxxxx"
+  -H "Authorization: Bearer is_live_YOUR_KEY"
 ```
 
 <Warning>
-  Never expose API keys in client-side code or public repositories.
+  Never commit API keys to source control or expose them in browser-side code.
 </Warning>
 
-## JWT (session token)
+## JWT (dashboard sessions)
 
-Use JWTs when building on behalf of a logged-in dashboard user.
+For tools built on top of the logged-in dashboard, authenticate users with JWT:
 
 ```bash
 curl -s -X POST https://api.inboundsage.com/v1/auth/login \
@@ -42,25 +40,16 @@ curl -s -X POST https://api.inboundsage.com/v1/auth/login \
   -d '{"email":"you@company.com","password":"your-password"}'
 ```
 
-Response:
+Use the returned `accessToken` as the Bearer token. Refresh via `POST /v1/auth/refresh`.
 
-```json
-{
-  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-  "refreshToken": "..."
-}
-```
+Developer endpoints (`/v1/campaigns`, `/v1/webhooks`) require **OWNER** or **ADMIN** when using JWT. API keys are not role-restricted but remain tenant-scoped.
 
-Use `accessToken` as the Bearer token. Refresh before expiry via `POST /v1/auth/refresh`.
+## Rate limits
 
-## Required roles
+InboundSage returns `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset` on responses. Exceeding the limit returns `429` with code `RATE_LIMIT_EXCEEDED`.
 
-Developer API endpoints (`/v1/campaigns`, `/v1/webhooks`) require **OWNER** or **ADMIN** role when using JWT. API keys bypass role checks but remain tenant-scoped.
+See [Rate limits](/rate-limits) for defaults, campaign throughput, and [idempotency](/rate-limits#idempotency) headers.
 
 ## Multi-tenancy
 
-Every token is bound to one **tenant** (workspace). Resources created under a token are isolated — webhooks, campaigns, and messages only belong to that tenant.
-
-<Note>
-  If webhooks never fire for inbound messages, confirm the webhook was created under the same tenant as the connected WABA.
-</Note>
+Tokens are bound to a single tenant. Webhooks, campaigns, and inbound events only match resources in that workspace — create keys and webhooks under the same tenant as your connected WABA.

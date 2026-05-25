@@ -9,7 +9,7 @@ InboundSage is a WhatsApp Business API platform built for Indian SMBs and
 developers. Connect your WhatsApp Business Account, send template messages,
 run campaigns, and receive real-time delivery events — all via a clean REST API.
 
-Built by **Spectrum Enterprises**.
+Built by **Spectrum Enterprises** — *Inbound marketing automation for WhatsApp*.
 
 ## What you can build
 
@@ -30,11 +30,11 @@ Built by **Spectrum Enterprises**.
 
 ## Base URL
 
-All API requests use:
-
 ```
 https://api.inboundsage.com/v1
 ```
+
+All endpoints are versioned under `/v1`.
 
 For local development:
 
@@ -42,9 +42,16 @@ For local development:
 http://127.0.0.1:4000/v1
 ```
 
+## Before you start
+
+1. [Sign up](https://app.inboundsage.com/signup) for an InboundSage account
+2. Connect your WhatsApp Business Account via the dashboard
+3. [Create an API key](https://app.inboundsage.com/api-keys)
+4. Follow the [Quickstart](/quickstart) to send your first message
+
 ## Authentication
 
-Every request requires a Bearer token — either a **JWT** from login or a tenant **API key** (`is_live_…`). See [Authentication](/authentication).
+Every request requires a Bearer token — either an **API key** (`is_live_…`) or a **JWT** from login. See [Authentication](/authentication).
 
 ## Response format
 
@@ -59,17 +66,3 @@ Successful responses return JSON objects. Errors use a consistent envelope:
   }
 }
 ```
-
-## Next steps
-
-<Steps>
-  <Step title="Quickstart">
-    Send your first message in under five minutes. [Quickstart →](/quickstart)
-  </Step>
-  <Step title="Get an API key">
-    Create a key in the [dashboard](https://app.inboundsage.com/api-keys).
-  </Step>
-  <Step title="Register a webhook">
-    Receive `message.inbound` and delivery events. [Webhooks →](/api-reference/webhooks/register)
-  </Step>
-</Steps>

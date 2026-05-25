@@ -1,99 +1,100 @@
 ---
 title: Quickstart
-description: Send your first WhatsApp message via the InboundSage API
+description: Send your first WhatsApp message in 5 minutes
 ---
 
 # Quickstart
 
-This guide walks you through authenticating, finding your WABA and template IDs, and sending a template message.
+## 1. Get your API key
 
-## Prerequisites
+Go to [app.inboundsage.com/api-keys](https://app.inboundsage.com/api-keys),
+click **New API Key**, and copy the key. It starts with `is_live_`.
 
-- An InboundSage account with a connected WhatsApp Business Account (WABA)
-- At least one **APPROVED** message template
-- `curl` and `jq` installed
-
-## 1. Get an access token
-
-**Option A — API key (recommended for integrations)**
-
-Create a key at [app.inboundsage.com/api-keys](https://app.inboundsage.com/api-keys), then:
+<Warning>
+  The API key is shown only once. Store it securely — in an environment
+  variable, never in source code.
+</Warning>
 
 ```bash
-export TOKEN="is_live_your_api_key_here"
+export TOKEN="is_live_YOUR_KEY"
 ```
 
-**Option B — JWT (dashboard login)**
+Find your `waba_id` and `phone_number_id` in the dashboard or via `GET /v1/wabas`.
+
+## 2. Send a message
 
 ```bash
-export TOKEN=$(curl -s -X POST https://api.inboundsage.com/v1/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"you@company.com","password":"your-password"}' \
-  | jq -r .accessToken)
-```
-
-## 2. List your WABA and phone number
-
-```bash
-curl -s https://api.inboundsage.com/v1/wabas \
-  -H "Authorization: Bearer $TOKEN" \
-  | jq '.[0] | {wabaId:.id, phoneNumberId:.phoneNumbers[0].id}'
-```
-
-Save the IDs as environment variables:
-
-```bash
-export WABA_ID="your-waba-uuid"
-export PHONE_ID="your-phone-uuid"
-```
-
-## 3. Pick an approved template
-
-```bash
-curl -s https://api.inboundsage.com/v1/templates \
-  -H "Authorization: Bearer $TOKEN" \
-  | jq '[.items[] | select(.status=="APPROVED")][0] | {name:.name, language:.language}'
-```
-
-## 4. Send a message
-
-```bash
-curl -s -X POST https://api.inboundsage.com/v1/messages/send \
-  -H "Authorization: Bearer $TOKEN" \
+curl -X POST https://api.inboundsage.com/v1/messages/send \
+  -H "Authorization: Bearer is_live_YOUR_KEY" \
   -H "Content-Type: application/json" \
-  -H "Idempotency-Key: quickstart-$(date +%s)" \
   -d '{
-    "waba_id": "'"$WABA_ID"'",
-    "phone_number_id": "'"$PHONE_ID"'",
+    "waba_id": "YOUR_WABA_ID",
+    "phone_number_id": "YOUR_PHONE_NUMBER_ID",
     "to": "919876543210",
     "type": "template",
     "template": {
       "name": "your_template_name",
       "language": "en"
     }
-  }' | jq
+  }'
+```
+
+```json Response
+{
+  "id": "msg_uuid",
+  "meta_message_id": "wamid.xxx",
+  "status": "QUEUED"
+}
 ```
 
 <Note>
-  Replace `to` with the recipient number in international format without `+` (e.g. `919876543210` for India).
+  Use the template `name` and `language` from an **APPROVED** template (`GET /v1/templates`). Recipient numbers are digits without `+` (e.g. `919876543210`).
 </Note>
 
-## 5. Register a webhook (optional)
+## 3. Receive delivery events
+
+Register a webhook to get notified when messages are delivered or read:
 
 ```bash
-curl -s -X POST https://api.inboundsage.com/v1/webhooks \
-  -H "Authorization: Bearer $TOKEN" \
+curl -X POST https://api.inboundsage.com/v1/webhooks \
+  -H "Authorization: Bearer is_live_YOUR_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://your-server.com/webhooks/inboundsage",
-    "events": ["message.inbound", "message.delivered", "message.read"]
-  }' | jq
+    "url": "https://yourapp.com/webhooks/inboundsage",
+    "events": ["message.delivered", "message.read", "message.inbound"]
+  }'
 ```
 
-The `secret` is returned **once** — store it securely for [signature verification](/api-reference/webhooks/verify-signature).
+The response includes a `secret` shown **once** — save it for step 4.
+
+## 4. Verify the webhook signature
+
+Every event includes an `X-InboundSage-Signature` header.
+Verify it to confirm the request came from InboundSage:
+
+```javascript
+const crypto = require('crypto');
+
+function verifySignature(secret, rawBody, signatureHeader) {
+  const expected = 'sha256=' + crypto
+    .createHmac('sha256', secret)
+    .update(rawBody)
+    .digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(expected),
+    Buffer.from(signatureHeader)
+  );
+}
+```
+
+<Warning>
+  Use the raw request body (before JSON parsing). Re-stringifying will break verification.
+</Warning>
+
+See [Verify signature](/api-reference/webhooks/verify-signature) for Express middleware and event envelope details.
 
 ## What's next?
 
-- [Run a campaign](/api-reference/campaigns/create) to message many contacts
+- [Run a campaign](/api-reference/campaigns/create)
 - [Webhook event types](/api-reference/webhooks/events)
 - [Error codes](/errors)
