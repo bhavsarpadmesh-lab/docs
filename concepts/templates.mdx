@@ -5,4 +5,152 @@ description: Pre-approved WhatsApp message templates
 
 # Templates
 
-WhatsApp requires **approved templates** for business-initiated messages outside the 24-hour window. Sync and manage templates in the dashboard; list them with `GET /v1/templates` (`items[]`, status `APPROVED`).
+WhatsApp requires **approved templates** for business-initiated messages outside the 24-hour customer service window. Sync and manage templates in the [dashboard](https://app.inboundsage.com/dashboard/templates); list them with the API.
+
+## List templates
+
+```bash
+curl -s "https://api.inboundsage.com/v1/templates?status=APPROVED&limit=50" \
+  -H "Authorization: Bearer is_live_YOUR_KEY"
+```
+
+Response shape:
+
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "wabaId": "uuid",
+      "name": "order_confirmed",
+      "language": "en",
+      "category": "UTILITY",
+      "status": "APPROVED",
+      "components": { "meta": [ ... ], "inboundsageForm": { ... } }
+    }
+  ],
+  "page": 1,
+  "limit": 50,
+  "total": 12,
+  "totalPages": 1
+}
+```
+
+Use `name` and `language` from an **APPROVED** row when calling [`POST /v1/messages/send`](/api-reference/messages/send).
+
+## Categories
+
+| Category | Use case | Body at create time |
+|----------|----------|---------------------|
+| `MARKETING` | Promotions, offers | Custom text with `{{1}}`, `{{2}}`, … |
+| `UTILITY` | Order updates, alerts | Custom text with variables |
+| `AUTHENTICATION` | OTP / login codes | **Fixed by Meta** — no custom body text |
+
+<Warning>
+  **Authentication templates:** Meta does not accept a `text` field on the `BODY` component when creating the template. You only set optional flags (e.g. security disclaimer) and an OTP button (`copy_code`, `one_tap`, or `zero_tap`). The delivered message uses Meta’s preset format: `{code} is your verification code.`
+</Warning>
+
+Create templates via `POST /v1/templates` (dashboard uses the same API). Authentication example payload sent to Meta:
+
+```json
+{
+  "wabaId": "YOUR_WABA_UUID",
+  "name": "login_otp",
+  "language": "en",
+  "category": "AUTHENTICATION",
+  "body": "{{1}} is your verification code.",
+  "authBody": "{{1}} is your verification code.",
+  "addSecurityDisclaimer": true,
+  "buttons": [{ "type": "OTP", "otpType": "COPY_CODE" }]
+}
+```
+
+InboundSage strips invalid `BODY.text` for authentication before calling Meta.
+
+## Sending templates (messages API)
+
+All sends use **snake_case** on [`POST /v1/messages/send`](/api-reference/messages/send):
+
+| Field | Description |
+|-------|-------------|
+| `waba_id` | WABA UUID from `GET /v1/wabas` |
+| `phone_number_id` | Meta phone ID from `wabas[].phoneNumbers[].metaPhoneId` |
+| `to` | Recipient digits without `+` (e.g. `919876543210`) |
+| `type` | `"template"` |
+| `template.name` | Approved template name |
+| `template.language` | ISO code string (e.g. `"en"`) — forwarded to Meta as `{ "code": "en" }` |
+| `template.components` | Optional; variable values for body/header/buttons |
+
+### Utility / marketing (body variables)
+
+```json
+{
+  "waba_id": "YOUR_WABA_ID",
+  "phone_number_id": "YOUR_PHONE_NUMBER_ID",
+  "to": "919876543210",
+  "type": "template",
+  "template": {
+    "name": "order_confirmed",
+    "language": "en",
+    "components": [
+      {
+        "type": "body",
+        "parameters": [
+          { "type": "text", "text": "Padmesh" },
+          { "type": "text", "text": "ORD-48291" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Parameter order maps to `{{1}}`, `{{2}}`, … in the template body.
+
+### Authentication / OTP (`login_otp`)
+
+Meta requires the **same OTP value** in both the **body** and the **URL button** (index `0`):
+
+```json
+{
+  "waba_id": "YOUR_WABA_ID",
+  "phone_number_id": "YOUR_PHONE_NUMBER_ID",
+  "to": "919922227902",
+  "type": "template",
+  "template": {
+    "name": "login_otp",
+    "language": "en",
+    "components": [
+      {
+        "type": "body",
+        "parameters": [{ "type": "text", "text": "482917" }]
+      },
+      {
+        "type": "button",
+        "sub_type": "url",
+        "index": "0",
+        "parameters": [{ "type": "text", "text": "482917" }]
+      }
+    ]
+  }
+}
+```
+
+<Note>
+  OTP codes are typically 4–6 digits. Max 15 characters per Meta rules.
+</Note>
+
+### Media headers
+
+For IMAGE / VIDEO / DOCUMENT templates, add a `header` component with a public HTTPS URL when sending campaigns or single messages. Campaigns support `headerMediaUrl` or per-recipient `__headerMediaUrl` in variables — see [Create campaign](/api-reference/campaigns/create).
+
+## Template sync
+
+```bash
+curl -X POST "https://api.inboundsage.com/v1/templates/sync" \
+  -H "Authorization: Bearer is_live_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "wabaId": "YOUR_WABA_UUID" }'
+```
+
+Pulls latest approval status from Meta into your workspace.

@@ -19,13 +19,30 @@ click **New API Key**, and copy the key. It starts with `is_live_`.
 export TOKEN="is_live_YOUR_KEY"
 ```
 
-Find your `waba_id` and `phone_number_id` in the dashboard or via `GET /v1/wabas`.
+## 2. Resolve WABA and phone IDs
 
-## 2. Send a message
+```bash
+curl -s https://api.inboundsage.com/v1/wabas \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Copy:
+
+- `id` → use as `waba_id` in message sends
+- `phoneNumbers[0].metaPhoneId` → use as `phone_number_id`
+
+List approved templates:
+
+```bash
+curl -s "https://api.inboundsage.com/v1/templates?status=APPROVED&limit=20" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+## 3. Send a template message
 
 ```bash
 curl -X POST https://api.inboundsage.com/v1/messages/send \
-  -H "Authorization: Bearer is_live_YOUR_KEY" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "waba_id": "YOUR_WABA_ID",
@@ -34,30 +51,38 @@ curl -X POST https://api.inboundsage.com/v1/messages/send \
     "type": "template",
     "template": {
       "name": "your_template_name",
-      "language": "en"
+      "language": "en",
+      "components": [
+        {
+          "type": "body",
+          "parameters": [
+            { "type": "text", "text": "Example value for {{1}}" }
+          ]
+        }
+      ]
     }
   }'
 ```
 
-```json Response
+```json
 {
   "id": "msg_uuid",
   "meta_message_id": "wamid.xxx",
-  "status": "QUEUED"
+  "status": "SENT"
 }
 ```
 
 <Note>
-  Use the template `name` and `language` from an **APPROVED** template (`GET /v1/templates`). Recipient numbers are digits without `+` (e.g. `919876543210`).
+  Use `name` and `language` from an **APPROVED** template. For OTP templates (`login_otp`), see [Templates — authentication](/concepts/templates#authentication--otp-login_otp).
 </Note>
 
-## 3. Receive delivery events
+## 4. Receive delivery events
 
 Register a webhook to get notified when messages are delivered or read:
 
 ```bash
 curl -X POST https://api.inboundsage.com/v1/webhooks \
-  -H "Authorization: Bearer is_live_YOUR_KEY" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://yourapp.com/webhooks/inboundsage",
@@ -65,9 +90,9 @@ curl -X POST https://api.inboundsage.com/v1/webhooks \
   }'
 ```
 
-The response includes a `secret` shown **once** — save it for step 4.
+The response includes a `secret` shown **once** — save it for step 5.
 
-## 4. Verify the webhook signature
+## 5. Verify the webhook signature
 
 Every event includes an `X-InboundSage-Signature` header.
 Verify it to confirm the request came from InboundSage:
@@ -95,6 +120,7 @@ See [Verify signature](/api-reference/webhooks/verify-signature) for Express mid
 
 ## What's next?
 
+- [Template categories & OTP sends](/concepts/templates)
 - [Run a campaign](/api-reference/campaigns/create)
 - [Webhook event types](/api-reference/webhooks/events)
 - [Error codes](/errors)

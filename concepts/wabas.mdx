@@ -5,4 +5,43 @@ description: WhatsApp Business Accounts in InboundSage
 
 # WABAs
 
-A **WhatsApp Business Account (WABA)** is your Meta business identity linked to InboundSage. Connect it in the [dashboard](https://app.inboundsage.com) to get `waba_id` and `phone_number_id` values for the API. List connected WABAs with `GET /v1/wabas`.
+A **WhatsApp Business Account (WABA)** is your Meta business identity linked to InboundSage. Connect it in the [dashboard](https://app.inboundsage.com) to get IDs for the API.
+
+## List WABAs
+
+```bash
+curl -s https://api.inboundsage.com/v1/wabas \
+  -H "Authorization: Bearer is_live_YOUR_KEY"
+```
+
+Example response (abbreviated):
+
+```json
+[
+  {
+    "id": "c46c1e11-f7ab-45dc-9893-1d3f6a3f02f1",
+    "metaWabaId": "828607296645500",
+    "name": "My Business",
+    "status": "CONNECTED",
+    "phoneNumbers": [
+      {
+        "id": "phone-uuid",
+        "metaPhoneId": "1166834889840357",
+        "displayNumber": "+91 72763 96585",
+        "verifiedName": "My Brand",
+        "status": "CONNECTED",
+        "messagingLimitTier": "TIER_1K"
+      }
+    ]
+  }
+]
+```
+
+| Use in API | Field |
+|------------|-------|
+| `waba_id` / `wabaId` | WABA `id` |
+| `phone_number_id` / `phoneNumberId` | `phoneNumbers[].metaPhoneId` |
+
+<Note>
+  `metaPhoneId` is the Meta Cloud API phone number ID (numeric string), not the E.164 display number.
+</Note>

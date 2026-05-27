@@ -31,13 +31,30 @@ All errors follow a consistent format:
 | `CAMPAIGN_NOT_DRAFT` | 409 | Campaign must be DRAFT to activate |
 | `IDEMPOTENCY_CONFLICT` | 409 | Idempotency key reused with different body |
 | `WABA_NOT_CONNECTED` | 422 | No active WABA on this account |
-| `PHONE_NUMBER_INACTIVE` | 422 | Phone number not registered or inactive |
+| `PHONE_NUMBER_INACTIVE` | 422 | Phone number not registered, inactive, or outside 24h window for free-form text |
+| `CONTACT_OPTED_OUT` | 422 | Recipient opted out — cannot message |
 | `RATE_LIMIT_EXCEEDED` | 429 | Too many requests |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
+## Messaging window (422)
+
+When sending `type: "text"` outside the 24-hour customer service window, the API may return:
+
+```json
+{
+  "error": "OUT_OF_24H_WINDOW",
+  "message": "Free-form messages require an inbound message from this recipient within the last 24 hours.",
+  "use_template": true
+}
+```
+
+Send an approved **template** instead (`type: "template"`).
+
 ## Meta delivery errors
 
-Message and campaign sends may fail at the recipient level (e.g. Meta error `132000` template not found). Check `CampaignRecipient.error` or message status webhooks — these are not always returned as top-level API errors.
+Message and campaign sends may fail at the recipient level (e.g. Meta error `132000` template not found, or authentication template missing button parameters). Check `CampaignRecipient.error` or message status webhooks — these are not always returned as top-level API errors.
+
+Authentication OTP sends require **both** `body` and `button` components with the same code — see [Send message](/api-reference/messages/send#request--authentication-otp).
 
 ## Retries
 

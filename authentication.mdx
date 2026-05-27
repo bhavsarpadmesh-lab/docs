@@ -51,6 +51,41 @@ Use `accessToken` as the Bearer token. Refresh with `POST /v1/auth/refresh`.
 
 Developer endpoints (`/v1/campaigns`, `/v1/webhooks`) require **OWNER** or **ADMIN** when using JWT. API keys are not role-restricted but remain tenant-scoped.
 
+### Sign up (dashboard)
+
+`POST /v1/auth/signup` registers a workspace and owner user:
+
+```json
+{
+  "email": "you@company.com",
+  "password": "minimum-10-chars",
+  "whatsappPhone": "9922227902",
+  "tenantName": "My Company",
+  "firstName": "Optional",
+  "lastName": "Optional"
+}
+```
+
+`whatsappPhone` is required — digits with or without country code (India `91` is added for 10-digit numbers). After email verification you can use **WhatsApp OTP login** on the same number.
+
+### WhatsApp OTP login (dashboard)
+
+Passwordless sign-in for the web app (not for server-to-server API calls):
+
+```bash
+# 1. Request code (sent to the WhatsApp on file for this email)
+curl -s -X POST https://api.inboundsage.com/v1/auth/whatsapp/request-otp \
+  -H 'Content-Type: application/json' \
+  -d '{"whatsappPhone":"9922227902"}'
+
+# 2. Verify code → returns accessToken + refreshToken (same shape as /v1/auth/login)
+curl -s -X POST https://api.inboundsage.com/v1/auth/whatsapp/verify-otp \
+  -H 'Content-Type: application/json' \
+  -d '{"whatsappPhone":"9922227902","code":"482917"}'
+```
+
+Integrations should use **API keys** (`is_live_…`), not dashboard OTP endpoints.
+
 ## Rate limits
 
 Limits apply per API key / tenant. Plan tiers:

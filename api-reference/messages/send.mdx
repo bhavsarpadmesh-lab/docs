@@ -7,9 +7,11 @@ description: POST /v1/messages/send
 
 `POST /v1/messages/send`
 
-Send a WhatsApp message to a single recipient.
+Send a WhatsApp message to a single recipient. Request fields use **snake_case** (unlike campaigns, which use camelCase).
 
-## Request
+Supports [Idempotency-Key](/authentication#idempotency) for safe retries.
+
+## Request — template (utility)
 
 ```bash
 curl -X POST https://api.inboundsage.com/v1/messages/send \
@@ -22,13 +24,14 @@ curl -X POST https://api.inboundsage.com/v1/messages/send \
     "to": "919876543210",
     "type": "template",
     "template": {
-      "name": "your_template",
+      "name": "order_confirmed",
       "language": "en",
       "components": [
         {
           "type": "body",
           "parameters": [
-            { "type": "text", "text": "Padmesh" }
+            { "type": "text", "text": "Padmesh" },
+            { "type": "text", "text": "ORD-1234" }
           ]
         }
       ]
@@ -36,22 +39,94 @@ curl -X POST https://api.inboundsage.com/v1/messages/send \
   }'
 ```
 
-<Note>
-  `language` is an ISO code string (e.g. `"en"`). InboundSage forwards it to Meta as `{ "code": "en" }`. Optional `components` are passed through to the WhatsApp Cloud API.
-</Note>
+## Request — authentication OTP
+
+For approved `AUTHENTICATION` templates (e.g. `login_otp`), pass the code in **body** and **button** components:
+
+```bash
+curl -X POST https://api.inboundsage.com/v1/messages/send \
+  -H "Authorization: Bearer is_live_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "waba_id": "YOUR_WABA_ID",
+    "phone_number_id": "YOUR_PHONE_NUMBER_ID",
+    "to": "919922227902",
+    "type": "template",
+    "template": {
+      "name": "login_otp",
+      "language": "en",
+      "components": [
+        {
+          "type": "body",
+          "parameters": [{ "type": "text", "text": "482917" }]
+        },
+        {
+          "type": "button",
+          "sub_type": "url",
+          "index": "0",
+          "parameters": [{ "type": "text", "text": "482917" }]
+        }
+      ]
+    }
+  }'
+```
+
+See [Templates](/concepts/templates) for category rules and creation notes.
+
+## Request — text (24h window)
+
+Free-form text only works within **24 hours** of the customer's last inbound message:
+
+```json
+{
+  "waba_id": "YOUR_WABA_ID",
+  "phone_number_id": "YOUR_PHONE_NUMBER_ID",
+  "to": "919876543210",
+  "type": "text",
+  "text": { "body": "Thanks for your order — it ships today." }
+}
+```
+
+Outside the window the API returns `422` with `use_template: true` — send an approved template instead.
+
+## Request — optional contact enrichment
+
+Merge tags, notes, or lead stage on the contact in the same request (best-effort; does not block send):
+
+```json
+{
+  "waba_id": "...",
+  "phone_number_id": "...",
+  "to": "919876543210",
+  "type": "template",
+  "template": { "name": "hello", "language": "en" },
+  "contact": {
+    "name": "Ramesh Sharma",
+    "tags": ["checkout"],
+    "leadStage": "QUALIFIED",
+    "notes": "Called from landing page"
+  }
+}
+```
+
+`tags` are **additive** — they merge with existing tags, never replace the full list.
 
 ## Parameters
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `waba_id` | string | ✓ | Your WABA UUID |
-| `phone_number_id` | string | ✓ | Your WhatsApp phone number ID |
+| `waba_id` | string | ✓ | Your WABA UUID (`GET /v1/wabas` → `id`) |
+| `phone_number_id` | string | ✓ | Meta phone ID (`phoneNumbers[].metaPhoneId`) |
 | `to` | string | ✓ | Recipient digits without `+` (e.g. `919876543210`) |
 | `type` | string | ✓ | `text`, `template`, `image`, `document`, `audio`, `video` |
 | `template` | object | if type=template | `name`, `language`, optional `components` |
 | `text` | object | if type=text | `{ "body": "Hello" }` |
+| `image` / `document` / `audio` / `video` | object | if matching type | Meta media object (`link` or `id`) |
+| `contact` | object | | Optional CRM enrichment (see above) |
 
-Supports [Idempotency-Key](/authentication#idempotency) for safe retries.
+<Note>
+  `language` is a plain string (e.g. `"en"`). InboundSage forwards it to Meta as `{ "code": "en" }`. `components` are passed through to the WhatsApp Cloud API unchanged.
+</Note>
 
 ## Response
 
@@ -59,12 +134,23 @@ Supports [Idempotency-Key](/authentication#idempotency) for safe retries.
 {
   "id": "fb704de9-e670-4532-ae8e-57aad4268728",
   "meta_message_id": "wamid.HBgMOTE5OTIy...",
-  "status": "QUEUED"
+  "status": "SENT"
 }
 ```
 
-<Note>
-  Outside the 24-hour customer service window, only approved template
-  messages can be sent. Free-form text is allowed within 24 hours of
-  the customer's last message.
-</Note>
+| Field | Description |
+|-------|-------------|
+| `id` | InboundSage message log UUID |
+| `meta_message_id` | WhatsApp message ID (`wamid.…`) |
+| `status` | `SENT` on success (or `QUEUED` briefly while processing) |
+
+## Errors
+
+| Situation | HTTP | Notes |
+|-----------|------|-------|
+| Outside 24h window (text send) | 422 | Body includes `use_template: true` |
+| Contact opted out | 422 | `CONTACT_OPTED_OUT` |
+| Invalid template / Meta rejection | 400 | Meta error message in `error.message` |
+| Missing auth | 401 | Invalid or missing API key |
+
+Delivery failures after accept are reported via [webhooks](/api-reference/webhooks/events).

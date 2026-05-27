@@ -15,7 +15,7 @@ Built by **Spectrum Enterprises** — *Inbound marketing automation for WhatsApp
 
 <CardGroup cols={2}>
   <Card title="Send messages" icon="message" href="/api-reference/messages/send">
-    Send text, template, and media messages to any WhatsApp number.
+    Send text, template (utility + OTP), and media messages.
   </Card>
   <Card title="Run campaigns" icon="bullhorn" href="/api-reference/campaigns/create">
     Create and activate campaigns to thousands of contacts with a single API call.
@@ -42,16 +42,35 @@ For local development:
 http://127.0.0.1:4000/v1
 ```
 
+## API conventions
+
+| Area | Naming | Example |
+|------|--------|---------|
+| [Messages](/api-reference/messages/send) | **snake_case** | `waba_id`, `phone_number_id` |
+| [Campaigns](/api-reference/campaigns/create) | **camelCase** | `wabaId`, `phoneNumberId`, `templateId` |
+| [Templates](/concepts/templates) list/create | **camelCase** | `wabaId`, `saveAsDraft` |
+
+Recipient numbers are always **digits without `+`** (E.164 without plus), e.g. `919876543210` for India.
+
+Resolve IDs once with:
+
+```bash
+curl -s https://api.inboundsage.com/v1/wabas \
+  -H "Authorization: Bearer is_live_YOUR_KEY"
+```
+
+Use each WABA's `id` as `waba_id` / `wabaId` and `phoneNumbers[].metaPhoneId` as `phone_number_id` / `phoneNumberId`.
+
 ## Before you start
 
-1. [Sign up](https://app.inboundsage.com/signup) for an InboundSage account
+1. [Sign up](https://app.inboundsage.com/signup) for an InboundSage account (include your WhatsApp number for optional passwordless login)
 2. Connect your WhatsApp Business Account via the dashboard
 3. [Create an API key](https://app.inboundsage.com/api-keys)
 4. Follow the [Quickstart](/quickstart) to send your first message
 
 ## Authentication
 
-Every request requires a Bearer token — either an **API key** (`is_live_…`) or a **JWT** from login. See [Authentication](/authentication).
+Every request requires a Bearer token — either an **API key** (`is_live_…`) or a **JWT** from dashboard login. See [Authentication](/authentication).
 
 ## Response format
 
@@ -66,3 +85,5 @@ Successful responses return JSON objects. Errors use a consistent envelope:
   }
 }
 ```
+
+Some validation responses (e.g. outside the 24-hour messaging window) may include extra fields on the JSON body; treat `error.message` as the primary user-facing text.
