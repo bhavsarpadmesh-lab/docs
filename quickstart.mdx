@@ -47,7 +47,7 @@ curl -X POST https://api.inboundsage.com/v1/messages/send \
   -d '{
     "waba_id": "YOUR_WABA_ID",
     "phone_number_id": "YOUR_PHONE_NUMBER_ID",
-    "to": "919876543210",
+    "to": "+919876543210",
     "type": "template",
     "template": {
       "name": "your_template_name",
@@ -60,6 +60,10 @@ curl -X POST https://api.inboundsage.com/v1/messages/send \
           ]
         }
       ]
+    },
+    "contact": {
+      "tags": ["quickstart"],
+      "segmentSource": "api-quickstart"
     }
   }'
 ```

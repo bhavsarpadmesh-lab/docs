@@ -11,7 +11,9 @@ Send a WhatsApp message to a single recipient. Request fields use **snake_case**
 
 Supports [Idempotency-Key](/authentication#idempotency) for safe retries.
 
-## Request — template (utility)
+## Request — template with contact enrichment
+
+Use `waba_id` from `GET /v1/wabas` → `id` (InboundSage UUID, **not** Meta’s numeric WABA id). Recipient `to` is E.164 (include `+`).
 
 ```bash
 curl -X POST https://api.inboundsage.com/v1/messages/send \
@@ -19,9 +21,46 @@ curl -X POST https://api.inboundsage.com/v1/messages/send \
   -H "Idempotency-Key: send-msg-001" \
   -H "Content-Type: application/json" \
   -d '{
-    "waba_id": "YOUR_WABA_ID",
+    "waba_id": "YOUR_WABA_UUID",
     "phone_number_id": "YOUR_PHONE_NUMBER_ID",
-    "to": "919876543210",
+    "to": "+919876543210",
+    "type": "template",
+    "template": {
+      "name": "order_confirmed",
+      "language": "en",
+      "components": [
+        {
+          "type": "body",
+          "parameters": [
+            { "type": "text", "text": "Padmesh" },
+            { "type": "text", "text": "ORD-1234" }
+          ]
+        }
+      ]
+    },
+    "contact": {
+      "name": "Ramesh Sharma",
+      "tags": ["checkout", "hot-lead"],
+      "leadStage": "QUALIFIED",
+      "segmentSource": "landing-page-form",
+      "campaignSource": "Summer Promo 2026",
+      "notes": "Called from landing page"
+    }
+  }'
+```
+
+The optional `contact` object updates CRM fields **after** the send is accepted. Enrichment is best-effort (fire-and-forget) and never blocks delivery.
+
+## Request — template only (no enrichment)
+
+```bash
+curl -X POST https://api.inboundsage.com/v1/messages/send \
+  -H "Authorization: Bearer is_live_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "waba_id": "YOUR_WABA_UUID",
+    "phone_number_id": "YOUR_PHONE_NUMBER_ID",
+    "to": "+919876543210",
     "type": "template",
     "template": {
       "name": "order_confirmed",
@@ -48,9 +87,9 @@ curl -X POST https://api.inboundsage.com/v1/messages/send \
   -H "Authorization: Bearer is_live_YOUR_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "waba_id": "YOUR_WABA_ID",
+    "waba_id": "YOUR_WABA_UUID",
     "phone_number_id": "YOUR_PHONE_NUMBER_ID",
-    "to": "919922227902",
+    "to": "+919922227902",
     "type": "template",
     "template": {
       "name": "login_otp",
@@ -79,9 +118,9 @@ Free-form text only works within **24 hours** of the customer's last inbound mes
 
 ```json
 {
-  "waba_id": "YOUR_WABA_ID",
+  "waba_id": "YOUR_WABA_UUID",
   "phone_number_id": "YOUR_PHONE_NUMBER_ID",
-  "to": "919876543210",
+  "to": "+919876543210",
   "type": "text",
   "text": { "body": "Thanks for your order — it ships today." }
 }
@@ -89,40 +128,31 @@ Free-form text only works within **24 hours** of the customer's last inbound mes
 
 Outside the window the API returns `422` with `use_template: true` — send an approved template instead.
 
-## Request — optional contact enrichment
+## Contact enrichment fields
 
-Merge tags, notes, or lead stage on the contact in the same request (best-effort; does not block send):
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Display name to set or update |
+| `tags` | string[] | **Additive** — merged with existing tags (max 10, 50 chars each) |
+| `leadStage` | string | Funnel stage: `NEW`, `CONTACTED`, `QUALIFIED`, `PROPOSAL`, `WON`, `LOST` |
+| `segmentSource` | string | Segment, landing page, or integration label (max 100 chars) |
+| `campaignSource` | string | Campaign or broadcast that sourced this contact (max 100 chars) |
+| `notes` | string | Note on the contact record (max 200 chars; best-effort) |
 
-```json
-{
-  "waba_id": "...",
-  "phone_number_id": "...",
-  "to": "919876543210",
-  "type": "template",
-  "template": { "name": "hello", "language": "en" },
-  "contact": {
-    "name": "Ramesh Sharma",
-    "tags": ["checkout"],
-    "leadStage": "QUALIFIED",
-    "notes": "Called from landing page"
-  }
-}
-```
-
-`tags` are **additive** — they merge with existing tags, never replace the full list.
+`tags` never replace the full tag list — they only add new tags.
 
 ## Parameters
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `waba_id` | string | ✓ | Your WABA UUID (`GET /v1/wabas` → `id`) |
+| `waba_id` | string | ✓ | InboundSage WABA UUID (`GET /v1/wabas` → `id`) |
 | `phone_number_id` | string | ✓ | Meta phone ID (`phoneNumbers[].metaPhoneId`) |
-| `to` | string | ✓ | Recipient digits without `+` (e.g. `919876543210`) |
+| `to` | string | ✓ | Recipient E.164 (e.g. `+919876543210`) |
 | `type` | string | ✓ | `text`, `template`, `image`, `document`, `audio`, `video` |
 | `template` | object | if type=template | `name`, `language`, optional `components` |
 | `text` | object | if type=text | `{ "body": "Hello" }` |
 | `image` / `document` / `audio` / `video` | object | if matching type | Meta media object (`link` or `id`) |
-| `contact` | object | | Optional CRM enrichment (see above) |
+| `contact` | object | | Optional CRM enrichment (see table above) |
 
 <Note>
   `language` is a plain string (e.g. `"en"`). InboundSage forwards it to Meta as `{ "code": "en" }`. `components` are passed through to the WhatsApp Cloud API unchanged.

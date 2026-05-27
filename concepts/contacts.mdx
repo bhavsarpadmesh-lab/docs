@@ -5,4 +5,18 @@ description: Audience records for campaigns and messaging
 
 # Contacts
 
-**Contacts** are recipients stored per tenant with phone, opt-in status, and tags. Use `SEGMENT`, `CONTACTS`, or `INLINE` audience types when creating campaigns.
+**Contacts** are recipients stored per tenant with phone, opt-in status, tags, and source metadata. Use `SEGMENT`, `CONTACTS`, or `INLINE` audience types when creating campaigns.
+
+## Source and activity fields
+
+| Field | Description |
+|-------|-------------|
+| `source` | How the contact was created (`API`, `INBOUND`, `IMPORT`, etc.) |
+| `segmentSource` | Free-form label (landing page, integration, segment name) |
+| `campaignSource` | Campaign or broadcast that sourced the contact |
+| `lastContactedAt` | Last outbound message timestamp |
+| `lastRepliedAt` | Last inbound reply timestamp |
+
+## Enrich on send
+
+When calling [Send Message](/api-reference/messages/send), pass an optional `contact` object in the same request to set name, tags, lead stage, sources, or notes. Tags are **additive** and enrichment does not block message delivery.
